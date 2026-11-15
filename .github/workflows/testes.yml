@@ -1,0 +1,34 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Testes automatizados
+        run: python -m unittest -v
+      - name: Partida completa pelo terminal (entrada simulada)
+        shell: bash
+        run: |
+          python - <<'EOF' > entrada.txt
+          import random
+          r = random.Random(1)
+          linhas = ["1", "", "", "800", "4", "0", "n", "2", "s"]
+          linhas += [r.choice(["p", "c", "d", "c", "a 40", ""]) for _ in range(600)]
+          print("\n".join(linhas))
+          EOF
+          python main.py --semente 1 --dados ci_dados < entrada.txt > saida.txt
+          grep -c "→ OK" saida.txt
+          ! grep -q "ERRO\|Traceback" saida.txt

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# dados locais do jogador (banco, históricos, relatórios, chave do Supabase)
+dados/
+ci_dados/
+entrada.txt
+saida.txt

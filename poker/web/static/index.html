@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Cash Game — treino</title>
+<style>
+  :root { --feltro:#14532d; --borda:#7c4a1d; --fundo:#0f172a; --painel:#1e293b; --texto:#e2e8f0;
+          --suave:#94a3b8; --verde:#22c55e; --vermelho:#ef4444; --amarelo:#facc15; --azul:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,"Segoe UI",sans-serif; background:var(--fundo); color:var(--texto); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:10px 18px; background:#020617; }
+  header h1 { font-size:1.05rem; margin:0; font-weight:600; }
+  header a { color:var(--azul); text-decoration:none; font-size:.9rem; margin-left:14px; }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:14px; padding:14px; max-width:1300px; margin:auto; }
+  @media (max-width:900px){ main{grid-template-columns:1fr;} }
+  .painel { background:var(--painel); border-radius:12px; padding:14px; }
+  .mesa-wrap { position:relative; height:470px; }
+  .feltro { position:absolute; inset:60px 70px; background:radial-gradient(ellipse at center,#1f7a45 0%,var(--feltro) 70%);
+            border:14px solid var(--borda); border-radius:200px; box-shadow:inset 0 0 40px #0008; }
+  .centro { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; }
+  .pote { font-weight:700; margin-bottom:8px; color:var(--amarelo); }
+  .rodada { font-size:.8rem; color:#d1fae5; margin-top:6px; }
+  .assento { position:absolute; width:150px; transform:translate(-50%,-50%); background:#0b1220ee; border:2px solid #334155;
+             border-radius:10px; padding:6px 8px; text-align:center; font-size:.82rem; }
+  .assento.vez { border-color:var(--amarelo); box-shadow:0 0 12px #facc1588; }
+  .assento.fora { opacity:.45; }
+  .assento.humano { border-color:var(--azul); }
+  .assento .nome { font-weight:600; }
+  .assento .tag { display:inline-block; font-size:.68rem; background:#334155; border-radius:6px; padding:0 5px; margin-left:3px; }
+  .assento .botao { background:#f8fafc; color:#000; border-radius:50%; padding:0 5px; font-weight:700; }
+  .aposta { position:absolute; transform:translate(-50%,-50%); background:#facc15; color:#000; font-weight:700;
+            font-size:.75rem; border-radius:10px; padding:1px 7px; }
+  .cartas { display:flex; gap:4px; justify-content:center; margin:4px 0; min-height:44px; }
+  .carta { width:32px; height:44px; border-radius:5px; background:#fff; color:#111; font-weight:700; display:flex;
+           flex-direction:column; align-items:center; justify-content:center; line-height:1; font-size:.9rem; box-shadow:0 1px 3px #0006; }
+  .carta.grande { width:44px; height:60px; font-size:1.15rem; }
+  .carta.h, .carta.d { color:#dc2626; }
+  .carta.verso { background:repeating-linear-gradient(45deg,#1d4ed8,#1d4ed8 4px,#1e40af 4px,#1e40af 8px); }
+  .acoes { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+  button { background:#334155; color:var(--texto); border:0; border-radius:8px; padding:9px 14px; font-size:.92rem; cursor:pointer; }
+  button:hover { filter:brightness(1.2); }
+  button.primario { background:#2563eb; } button.perigo { background:#b91c1c; } button.ok { background:#15803d; }
+  button:disabled { opacity:.4; cursor:default; }
+  input, select { background:#0f172a; color:var(--texto); border:1px solid #475569; border-radius:6px; padding:6px 8px; }
+  input[type=range] { width:180px; }
+  .form { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .form label { font-size:.8rem; color:var(--suave); display:flex; flex-direction:column; gap:4px; }
+  .log { height:430px; overflow-y:auto; font-family:ui-monospace,Consolas,monospace; font-size:.78rem; white-space:pre-wrap; }
+  .log div { padding:1px 0; }
+  .log .treinador { color:var(--amarelo); }
+  .log .mao { color:var(--azul); margin-top:6px; }
+  .log .erro { color:var(--vermelho); }
+  .info { font-size:.85rem; color:var(--suave); margin-top:8px; }
+  .msg { color:var(--vermelho); font-size:.85rem; min-height:1.2em; margin-top:6px; }
+  h2 { font-size:.95rem; margin:0 0 10px; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>♠ Poker Cash Game — Texas Hold'em No-Limit (treino)</h1>
+  <nav><a href="/relatorio" target="_blank">Estatísticas e evolução</a></nav>
+</header>
+<main>
+  <section>
+    <div class="painel" id="painel-config">
+      <h2>Nova partida</h2>
+      <div class="form">
+        <label>Fichas iniciais <input id="c-fichas" type="number" min="2"></label>
+        <label>Bots <input id="c-bots" type="number" min="1" max="8"></label>
+        <label>Small blind <input id="c-sb" type="number" min="1"></label>
+        <label>Big blind <input id="c-bb" type="number" min="2"></label>
+        <label>Ante <input id="c-ante" type="number" min="0"></label>
+        <label>Dificuldade
+          <select id="c-dif"><option value="facil">Fácil</option><option value="medio">Médio</option><option value="dificil">Difícil</option></select></label>
+        <label><span><input id="c-straddle" type="checkbox"> Straddle (2× BB)</span></label>
+        <label><span><input id="c-treinador" type="checkbox"> Treinador</span></label>
+      </div>
+      <div class="acoes">
+        <button class="primario" onclick="iniciar(false)">Sentar na mesa</button>
+        <button id="b-continuar" onclick="iniciar(true)">Continuar mesa salva</button>
+      </div>
+      <div class="info" id="resumo-final"></div>
+      <div class="msg" id="msg-config"></div>
+    </div>
+
+    <div class="painel oculto" id="painel-mesa">
+      <div class="mesa-wrap" id="mesa">
+        <div class="feltro"></div>
+        <div class="centro"><div class="pote" id="pote"></div><div class="cartas" id="board"></div><div class="rodada" id="rodada"></div></div>
+      </div>
+      <div id="barra-acao" class="acoes oculto">
+        <button class="perigo" onclick="agir('desistir')">Desistir</button>
+        <button id="b-passar" onclick="agir('passar')">Passar</button>
+        <button id="b-pagar" class="ok" onclick="agir('pagar')">Pagar</button>
+        <span id="grupo-aumento">
+          <input id="valor" type="number" style="width:90px">
+          <input id="slider" type="range" oninput="document.getElementById('valor').value=this.value">
+          <button onclick="tamanho(0.5)">½ pote</button><button onclick="tamanho(0.75)">¾</button><button onclick="tamanho(1)">Pote</button>
+          <button class="primario" id="b-aumentar" onclick="agir('aumentar')">Aumentar</button>
+          <button class="primario" onclick="agir('allin')">All-in</button>
+        </span>
+        <button onclick="equity()">Equity?</button>
+      </div>
+      <div id="barra-entre" class="acoes oculto">
+        <button class="primario" onclick="comando('proxima')">Próxima mão</button>
+        <button onclick="comando('pausar')">Pausar e salvar</button>
+        <button class="perigo" onclick="comando('sair')">Sair da mesa</button>
+      </div>
+      <div id="barra-recompra" class="acoes oculto">
+        <button class="primario" onclick="comando('recomprar')">Recomprar</button>
+        <button class="perigo" onclick="comando('sair')">Sair da mesa</button>
+      </div>
+      <div class="info" id="info"></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </section>
+  <aside class="painel">
+    <h2>Mãos e treinador</h2>
+    <div class="log" id="log"></div>
+  </aside>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const SIMB = {s:'♠', h:'♥', d:'♦', c:'♣'};
+let desde = 0, estado = null, preencheu = false;
+
+function cartaHTML(c, grande) {
+  if (!c) return `<div class="carta verso${grande?' grande':''}"></div>`;
+  return `<div class="carta ${c.n}${grande?' grande':''}"><span>${c.v}</span><span>${SIMB[c.n]}</span></div>`;
+}
+async function api(caminho, corpo) {
+  const r = await fetch(caminho, corpo ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)} : {});
+  return r.json();
+}
+function preencherPadrao(p) {
+  if (preencheu) return; preencheu = true;
+  $('c-fichas').value = p.fichas_iniciais; $('c-bots').value = p.num_bots; $('c-sb').value = p.small_blind;
+  $('c-bb').value = p.big_blind; $('c-ante').value = p.ante; $('c-dif').value = p.dificuldade;
+  $('c-straddle').checked = p.straddle; $('c-treinador').checked = p.treinador;
+}
+async function iniciar(continuar) {
+  const corpo = continuar ? {continuar:true} : {
+    fichas_iniciais:+$('c-fichas').value, num_bots:+$('c-bots').value, small_blind:+$('c-sb').value,
+    big_blind:+$('c-bb').value, ante:+$('c-ante').value, dificuldade:$('c-dif').value,
+    straddle:$('c-straddle').checked, treinador:$('c-treinador').checked };
+  const r = await api('/api/iniciar', corpo);
+  $('msg-config').textContent = r.ok ? '' : r.erro;
+  atualizar();
+}
+async function agir(tipo) {
+  const r = await api('/api/acao', {tipo, valor:+$('valor').value});
+  $('msg').textContent = r.ok ? '' : r.erro; atualizar();
+}
+async function comando(c) {
+  const r = await api('/api/comando', {comando:c}); $('msg').textContent = r.ok ? '' : r.erro; atualizar();
+}
+async function equity() {
+  $('info').textContent = 'Calculando...';
+  const r = await api('/api/equity');
+  $('info').textContent = r.ok ? `Equity estimada contra ${r.oponentes} mão(s) aleatória(s): ${(r.equity*100).toFixed(0)}%` +
+    (r.pot_odds !== null ? ` · pot odds para pagar: ${(r.pot_odds*100).toFixed(0)}%` : '') : r.erro;
+}
+function tamanho(frac) {
+  const o = estado.opcoes, pote = estado.mesa.pote + o.para_pagar;
+  let v = Math.round(o.aposta_atual + pote * frac);
+  v = Math.max(o.min_para, Math.min(o.max_para, v));
+  $('valor').value = v; $('slider').value = v;
+}
+function desenharMesa(m) {
+  const wrap = $('mesa');
+  wrap.querySelectorAll('.assento,.aposta').forEach(e => e.remove());
+  $('pote').textContent = m.pote ? `Pote: ${m.pote}` : '';
+  $('board').innerHTML = m.comunitarias.map(c => cartaHTML(c, true)).join('');
+  $('rodada').textContent = m.mao ? `Mão #${m.mao} · ${m.rodada} · ${m.resumo_config}` : '';
+  const js = m.jogadores, n = js.length;
+  const humano = js.findIndex(j => j.humano);
+  js.forEach((j, i) => {
+    const k = (i - (humano < 0 ? 0 : humano) + n) % n;
+    const ang = Math.PI / 2 + 2 * Math.PI * k / n;
+    const x = 50 + 42 * Math.cos(ang), y = 50 + 41 * Math.sin(ang);
+    const d = document.createElement('div');
+    d.className = 'assento' + (j.vez ? ' vez' : '') + (j.desistiu || !j.em_jogo ? ' fora' : '') + (j.humano ? ' humano' : '');
+    d.style.left = x + '%'; d.style.top = y + '%';
+    const tags = (j.botao ? '<span class="botao">D</span>' : '') + (j.posicao ? `<span class="tag">${j.posicao}</span>` : '')
+               + (j.all_in ? '<span class="tag">all-in</span>' : '') + (j.estilo && j.estilo !== 'roteiro' ? `<span class="tag">${j.estilo}</span>` : '');
+    d.innerHTML = `<div class="nome">${j.nome} ${tags}</div><div class="cartas">${j.cartas.map(c => cartaHTML(c)).join('')}</div><div>${j.fichas} fichas</div>`;
+    wrap.appendChild(d);
+    if (j.aposta) {
+      const a = document.createElement('div'); a.className = 'aposta'; a.textContent = j.aposta;
+      a.style.left = (50 + 27 * Math.cos(ang)) + '%'; a.style.top = (50 + 24 * Math.sin(ang)) + '%';
+      wrap.appendChild(a);
+    }
+  });
+}
+function mostrarAcoes(e) {
+  $('barra-acao').classList.toggle('oculto', e.aguardando !== 'acao');
+  $('barra-entre').classList.toggle('oculto', e.aguardando !== 'entre_maos');
+  $('barra-recompra').classList.toggle('oculto', e.aguardando !== 'recompra');
+  if (e.aguardando === 'acao' && e.opcoes) {
+    const o = e.opcoes;
+    $('b-passar').classList.toggle('oculto', !o.pode_passar);
+    $('b-pagar').classList.toggle('oculto', o.pode_passar);
+    $('b-pagar').textContent = `Pagar ${o.para_pagar}`;
+    $('grupo-aumento').classList.toggle('oculto', !o.pode_aumentar);
+    $('b-aumentar').textContent = o.aposta_atual ? 'Aumentar para' : 'Apostar';
+    const s = $('slider');
+    if (+s.min !== o.min_para || +s.max !== o.max_para) {
+      s.min = o.min_para; s.max = o.max_para; s.value = o.min_para; $('valor').value = o.min_para;
+    }
+  }
+}
+function adicionarLog(linhas) {
+  const log = $('log'), noFim = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  for (const l of linhas) {
+    const d = document.createElement('div'); d.textContent = l;
+    if (l.startsWith('[Treinador]')) d.className = 'treinador';
+    else if (l.includes('=== Mão #')) d.className = 'mao';
+    else if (l.startsWith('ERRO')) d.className = 'erro';
+    log.appendChild(d);
+  }
+  if (noFim) log.scrollTop = log.scrollHeight;
+}
+async function atualizar() {
+  const e = await api('/api/estado?desde=' + desde);
+  estado = e; desde = e.total_log; adicionarLog(e.log);
+  preencherPadrao(e.padrao);
+  const config = e.aguardando === 'config';
+  $('painel-config').classList.toggle('oculto', !config);
+  $('painel-mesa').classList.toggle('oculto', config && !e.mesa.mao);
+  $('b-continuar').classList.toggle('oculto', !e.tem_mesa_salva);
+  if (config && e.resumo_final && !e.resumo_final.pausada) {
+    const r = e.resumo_final, s = r.estatisticas || {};
+    $('resumo-final').textContent = `Última sessão: ${r.maos} mãos · comprou ${r.comprado} · saiu com ${r.saida} · ` +
+      `resultado ${r.resultado >= 0 ? '+' : ''}${r.resultado}` + (s.bb100 != null ? ` · ${s.bb100.toFixed(1)} bb/100` : '') +
+      ` · conferência ${r.conferencia_ok ? 'OK' : 'ERRO'}`;
+  }
+  if (e.mesa && e.mesa.jogadores) desenharMesa(e.mesa);
+  mostrarAcoes(e);
+}
+setInterval(atualizar, 500); atualizar();
+</script>
+</body>
+</html>
